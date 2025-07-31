@@ -146,6 +146,10 @@ jobs:
               echo "正在合并a16bpf"
               cd $KERNEL_SOURCE
               git apply $WORKDIR/a16bpf.diff
+              git config user.name "${{ github.actor }}"
+              git config user.email "${{ github.actor }}@users.noreply.github.com"
+              git add .
+              git commit -m "合并a16bpf"
           fi
 
       - name: 🔨 Build the kernel (构建内核)
