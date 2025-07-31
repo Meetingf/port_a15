@@ -142,7 +142,8 @@ jobs:
           echo "正在克隆内核源码..."
           git clone https://github.com/liyafe1997/kernel_xiaomi_sm8250_mod.git --depth=1 $KERNEL_SOURCE
           echo "✅ Kernel source code cloning complete (内核源码克隆完成)"
-          if [ $github.event.inputs.a16_bpf = 'true' ];then
+          if [ ${{ github.event.inputs.a16_bpf }} == 'true' ];then
+              echo "正在合并a16bpf"
               cd $KERNEL_SOURCE
               git apply $WORKDIR/a16bpf.diff
               git add .
