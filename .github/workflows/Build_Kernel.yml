@@ -146,8 +146,6 @@ jobs:
               echo "正在合并a16bpf"
               cd $KERNEL_SOURCE
               git apply $WORKDIR/a16bpf.diff
-              git add .
-              git commit -m "合并a16bpf"
           fi
 
       - name: 🔨 Build the kernel (构建内核)
