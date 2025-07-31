@@ -107,7 +107,7 @@ jobs:
           remove-codeql: "true"
 
       - name: 获取a16bpf补丁
-        if: github.event.inputs.a16_bpf = 'true'
+        if: github.event.inputs.a16_bpf == 'true'
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.SECRET_NAME }}
