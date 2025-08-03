@@ -107,7 +107,7 @@ jobs:
           remove-codeql: "true"
 
       - name: 获取a16bpf补丁
-        if: github.event.inputs.a16_bpf = 'true'
+        if: github.event.inputs.a16_bpf == 'true'
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.SECRET_NAME }}
@@ -200,11 +200,17 @@ jobs:
 
           echo "操作成功完成！"
 
-      - name: 📤 Upload compilation results (上传编译结果)
+      - name: 📤 Upload AOSP compilation results (上传AOSP编译结果)
         uses: actions/upload-artifact@v4
         with:
-          name: Kernel-${{ matrix.device }}
-          path: ${{ github.workspace }}/out/*.zip
+          name: Kernel-${{ matrix.device }}-AOSP
+          path: ${{ github.workspace }}/out/Kernel_AOSP_*.zip
+
+      - name: 📤 Upload MIUI compilation results (上传MIUI编译结果)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kernel-${{ matrix.device }}-MIUI
+          path: ${{ github.workspace }}/out/Kernel_MIUI_*.zip
 
   release:
     needs: build
