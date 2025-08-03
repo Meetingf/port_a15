@@ -203,13 +203,13 @@ jobs:
       - name: 📤 Upload AOSP compilation results (上传AOSP编译结果)
         uses: actions/upload-artifact@v4
         with:
-          name: Kernel-${{ matrix.device }}-AOSP
+          name: Kernel-AOSP-${{ matrix.device }}
           path: ${{ github.workspace }}/out/Kernel_AOSP_*.zip
 
       - name: 📤 Upload MIUI compilation results (上传MIUI编译结果)
         uses: actions/upload-artifact@v4
         with:
-          name: Kernel-${{ matrix.device }}-MIUI
+          name: Kernel-MIUI-${{ matrix.device }}
           path: ${{ github.workspace }}/out/Kernel_MIUI_*.zip
 
   release:
@@ -233,7 +233,7 @@ jobs:
         cd ${{ github.workspace }}/out
         device_list=()
         for dir in */; do
-          device_name=$(echo "$dir" | sed 's/Kernel-//' | sed 's/\/$//')
+          device_name=$(echo "$dir" | sed 's/Kernel-MIUI-//' | sed 's/Kernel-AOSP-//' | sed 's/\/$//')
           echo "Found device: $device_name"
           device_list+=("$device_name")
           cd "$dir"
