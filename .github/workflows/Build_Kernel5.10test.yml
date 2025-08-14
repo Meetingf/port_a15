@@ -1,0 +1,259 @@
+name: Build Kernel 5.10bpf
+permissions:
+  contents: write
+  actions: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_devices:
+        description: 'target device (目标设备)'
+        required: true
+        type: choice
+        default: 'lmi'
+        options:
+          - 'lmi'
+          - 'umi'
+          - 'cmi'
+          - 'cas'
+          - 'thyme'
+          - 'munch'
+          - 'dagu'
+          - 'elish'
+          - 'enuma'
+          - 'alioth'
+          - 'apollo'
+          - 'psyche'
+          - 'pipa'
+          - 'all'
+      kernelsu_enable:
+        description: 'Is Ksu support enabled? (是否启用 kernelsu 支持?)'
+        required: true
+        type: choice
+        default: 'disable'
+        options:
+          - 'ksu'
+          - 'disable'
+      kernel_version:
+        description: 'Customizing the kernel version number (自定义内核版本号)'
+        required: false
+        type: string
+        default: ''
+      build_type:
+        description: 'Kernel Build Type (内核构建类型)'
+        required: true
+        type: choice
+        default: 'Release'
+        options:
+          - 'Release'
+          - 'Dev'
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        run: |
+          DEVICES="${{ github.event.inputs.target_devices }}"
+          if [ "$DEVICES" == "all" ]; then
+            DEVICES="umi,cmi,cas,thyme,munch,dagu,elish,enuma,alioth,apollo,lmi,psyche,pipa"
+          fi
+          DEVICES_JSON="[$(echo $DEVICES | sed 's/,/","/g' | sed 's/.*/"&"/')]"
+          echo "matrix={\"device\":$DEVICES_JSON}" >> $GITHUB_OUTPUT
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    strategy:
+      matrix: ${{fromJson(needs.prepare.outputs.matrix)}}
+      fail-fast: false
+    env:
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_HARDLINK: "true"
+      WORKDIR: "${{ github.workspace }}"
+      KERNEL_SOURCE: "${{ github.workspace }}/kernel_source"
+      DEVICE: "${{ matrix.device }}"
+
+    steps:
+      - name: 📢 Build Information (构建信息)
+        run: |
+          echo "设备: ${DEVICE}"
+          echo "KernelSU支持: ${{ github.event.inputs.kernelsu_enable }}"
+          echo "构建类型: ${{ github.event.inputs.build_type }}"
+
+      - name: 🚀 Maximize build space (最大化构建空间)
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 8192
+          temp-reserve-mb: 2048
+          swap-size-mb: 8192
+          remove-dotnet: "true"
+          remove-android: "true"
+          remove-haskell: "true"
+          remove-codeql: "true"
+
+      - name: 📦 Installation of dependencies (安装依赖)
+        run: |
+          sudo apt-get update -y 
+          sudo apt-get install -y \
+          build-essential git curl wget bison flex zip bc \
+          cpio libssl-dev libncurses-dev gcc \
+          python3 python3-pip ccache
+
+      - name: 📥 Caching toolchain (缓存工具链)
+        uses: actions/cache@v4
+        id: clang-cache
+        with:
+          path: $HOME/proton-clang
+          key: ${{ runner.os }}-proton-clang
+
+      - name: 📥 Download the compilation toolchain (下载编译工具链)
+        if: steps.clang-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p $HOME/proton-clang
+          cd $HOME/proton-clang
+          wget https://github.com/kdrag0n/proton-clang/archive/refs/tags/20210522.zip
+          unzip 20210522.zip
+          rm proton-clang-20210522/bin/ld 20210522.zip
+
+      - name: 📥 Cloning kernel source code (克隆内核源码)
+        run: |
+          echo "正在克隆内核源码..."
+          git clone https://github.com/jsdizkcksv/kernel_xiaomi_sm8250.git --depth=1 $KERNEL_SOURCE
+          echo "✅ Kernel source code cloning complete (内核源码克隆完成)"
+          cd $KERNEL_SOURCE
+          git apply $WORKDIR/buildmiui.diff
+
+      - name: 🔨 Build the kernel (构建内核)
+        run: |
+          cd $KERNEL_SOURCE
+          KSU_enable="${{ github.event.inputs.kernelsu_enable }}"
+          VERSION="${{ github.event.inputs.kernel_version }}"
+
+          # 修改内核版本号
+          if [ ! -z "$VERSION" ]; then
+              echo "🔧 设置自定义内核版本: $VERSION"
+              sed -i "s/-dirty/-$VERSION/g" scripts/setlocalversion
+          else
+              GIT_COMMIT_SHORT=$(git rev-parse --short=13 HEAD)
+              echo "🔧 使用默认版本"
+              sed -i "s/-dirty/-${GIT_COMMIT_SHORT}-${DEVICE}/g" scripts/setlocalversion
+              sed -i "s/echo \"\$res\"/echo \"-perf-${GIT_COMMIT_SHORT}-${DEVICE}\"/g" "$KERNEL_SOURCE/scripts/setlocalversion"
+          fi
+
+          FULL_VERSION="$VERSION"
+          if [ ! -z "$FULL_VERSION" ]; then
+            main_version=$(echo "$FULL_VERSION" | grep -oE '^[0-9]+(\.[0-9]+)*')
+            custom_part=$(echo "$FULL_VERSION" | grep -oE '(-[a-zA-Z0-9]+)*$')
+            makefile_path="$KERNEL_SOURCE/Makefile"
+            IFS='.' read -ra version_parts <<< "$main_version"
+            sed -i "2s/.*/VERSION = ${version_parts[0]}/" "$makefile_path"
+            if [ -n "${version_parts[1]}" ]; then
+              sed -i "3s/.*/PATCHLEVEL = ${version_parts[1]}/" "$makefile_path"
+            fi
+            if [ -n "${version_parts[2]}" ]; then
+              sed -i "4s/.*/SUBLEVEL = ${version_parts[2]}/" "$makefile_path"
+            fi
+
+            sed -i "s/echo \"\$res\"/echo \"${custom_part}\"/g" "$KERNEL_SOURCE/scripts/setlocalversion"
+          fi
+
+          bash build.sh "$DEVICE" "$KSU_enable"
+
+          mkdir -p "${WORKDIR}/out" || {
+              echo "无法创建目录：${WORKDIR}/out" >&2
+              exit 1
+          }
+          if ! compgen -G ./Kernel_*.zip > /dev/null; then
+              echo "警告：未找到 Kernel_*.zip 文件，跳过移动操作" >&2
+              exit 0
+          fi
+          mv -v ./Kernel_*.zip "${WORKDIR}/out/" || {
+              echo "移动文件时出错" >&2
+              exit 1
+          }
+
+          echo "操作成功完成！"
+          GIT_COMMIT_SHORT=$(git rev-parse --short=13 HEAD)
+          echo "GIT_COMMIT_ID=$GIT_COMMIT_ID" >> $GITHUB_ENV
+
+      - name: 📤 Upload AOSP compilation results (上传AOSP编译结果)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kernel-AOSP-${{ matrix.device }}
+          path: ${{ github.workspace }}/out/Kernel_AOSP_*.zip
+
+      - name: 📤 Upload MIUI compilation results (上传MIUI编译结果)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kernel-MIUI-${{ matrix.device }}
+          path: ${{ github.workspace }}/out/Kernel_MIUI_*.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: 📥 Download all zip artifacts (下载所有 zip 构建产物)
+      uses: actions/download-artifact@v4
+      with:
+        path: out
+
+    - name: 📝 Preparing files for release (准备发布文件)
+      run: |
+        if [[ ${{ github.event.inputs.build_type }} == Dev ]];then
+           echo "测试版内核，不上传release"
+           exit 1
+        fi
+        mkdir -p release
+        cd ${{ github.workspace }}/out
+        device_list=()
+        for dir in */; do
+          device_name=$(echo "$dir" | sed 's/Kernel-MIUI-//' | sed 's/Kernel-AOSP-//' | sed 's/\/$//')
+          echo "Found device: $device_name"
+          device_list+=("$device_name")
+          cd "$dir"
+        for zip_file in *; do
+          if [[ -f "$zip_file" && "$zip_file" == *.zip ]]; then
+          mv "$zip_file" ${{ github.workspace }}/release
+        fi
+          done
+          cd ..
+        done
+        TARGET_DEVICES=$(echo "${device_list[*]}" | tr ' ' '-')
+        echo "TARGET_DEVICES=$TARGET_DEVICES" >> $GITHUB_ENV
+
+    - name: 📅 Setting date variables (设置日期变量)
+      run: |
+        echo "RELEASE_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+          
+    - name: 📤 Post to Release (发布到 Release)
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ github.workspace }}/release/*.zip
+        name: Kernel_(${{ env.TARGET_DEVICES }})_${{ github.event.inputs.kernelsu_variant }}_${{ env.RELEASE_DATE }}_${{ env.GIT_COMMIT_ID }}_${{ github.event.inputs.build_type }}
+        tag_name: Kernel_(${{ env.TARGET_DEVICES }})_${{ github.event.inputs.kernelsu_variant }}_${{ env.RELEASE_DATE }}_${{ env.GIT_COMMIT_ID }}
+        body: |
+          ## 📱kernel build information | 内核构建信息
+          
+          ### 🇨🇳 中文 | Chinese
+          - **目标机型:** ${{ env.TARGET_DEVICES }}
+          - **KernelSU支持:** ${{ github.event.inputs.kernelsu_enable }}
+          - **构建类型:** ${{ github.event.inputs.build_type }}
+          - **构建日期:** ${{ env.RELEASE_DATE }}
+          - **提交ID:** ${{ env.GIT_COMMIT_ID }}
+      
+          ### 📋 安装说明 | Installation Guide
+          1. 下载对应机型的刷机包
+          2. 进入Recovery模式
+          3. 通过Recovery刷入刷机包
+          4. 重启设备
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
