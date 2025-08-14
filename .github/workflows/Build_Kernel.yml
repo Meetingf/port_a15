@@ -142,6 +142,8 @@ jobs:
           echo "正在克隆内核源码..."
           git clone https://github.com/liyafe1997/kernel_xiaomi_sm8250_mod.git --depth=1 $KERNEL_SOURCE
           echo "✅ Kernel source code cloning complete (内核源码克隆完成)"
+          cd $KERNEL_SOURCE
+          git apply $WORKDIR/buildmiui.diff
           if [ ${{ github.event.inputs.a16_bpf }} == 'true' ];then
               echo "正在合并a16bpf..."
               cd $KERNEL_SOURCE
@@ -202,6 +204,8 @@ jobs:
           }
 
           echo "操作成功完成！"
+          GIT_COMMIT_SHORT=$(git rev-parse --short=13 HEAD)
+          echo "GIT_COMMIT_ID=$GIT_COMMIT_ID" >> $GITHUB_ENV
 
       - name: 📤 Upload AOSP compilation results (上传AOSP编译结果)
         uses: actions/upload-artifact@v4
@@ -253,9 +257,6 @@ jobs:
     - name: 📅 Setting date variables (设置日期变量)
       run: |
         echo "RELEASE_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
-        REPO_URL="https://github.com/liyafe1997/kernel_xiaomi_sm8250_mod.git"
-        GIT_COMMIT_ID=$(git ls-remote $REPO_URL HEAD | cut -f1)
-        echo "GIT_COMMIT_ID=$GIT_COMMIT_ID" >> $GITHUB_ENV
           
     - name: 📤 Post to Release (发布到 Release)
       uses: softprops/action-gh-release@v1
