@@ -98,6 +98,9 @@ jobs:
           remove-haskell: "true"
           remove-codeql: "true"
 
+      - name: 检出仓库文件
+        uses: actions/checkout@main
+
       - name: 📦 Installation of dependencies (安装依赖)
         run: |
           sudo apt-get update -y 
