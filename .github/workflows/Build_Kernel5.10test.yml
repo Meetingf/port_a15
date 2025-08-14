@@ -98,9 +98,6 @@ jobs:
           remove-haskell: "true"
           remove-codeql: "true"
 
-      - name: 检出仓库文件
-        uses: actions/checkout@main
-
       - name: 📦 Installation of dependencies (安装依赖)
         run: |
           sudo apt-get update -y 
@@ -130,8 +127,6 @@ jobs:
           echo "正在克隆内核源码..."
           git clone https://github.com/jsdizkcksv/kernel_xiaomi_sm8250.git --depth=1 $KERNEL_SOURCE
           echo "✅ Kernel source code cloning complete (内核源码克隆完成)"
-          cd $KERNEL_SOURCE
-          git apply $WORKDIR/buildmiui.diff
 
       - name: 🔨 Build the kernel (构建内核)
         run: |
