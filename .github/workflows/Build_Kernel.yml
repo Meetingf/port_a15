@@ -129,13 +129,6 @@ jobs:
           cpio libssl-dev libncurses-dev gcc \
           python3 python3-pip ccache
 
-      - name: 📥 Caching toolchain (缓存工具链)
-        uses: actions/cache@v4
-        id: clang-cache
-        with:
-          path: $HOME/proton-clang
-          key: ${{ runner.os }}-proton-clang
-
       - name: 📥 Download the compilation toolchain (下载编译工具链)
         if: steps.clang-cache.outputs.cache-hit != 'true'
         run: |
@@ -294,7 +287,7 @@ jobs:
                   -e PERF_HELPER \
                   -e BOOTUP_RECLAIM \
                   -e MI_RECLAIM \
-                  -e RTMM \
+                  -e RTMM
           fi
 
           make $MAKE_ARGS -j$(nproc)
@@ -328,6 +321,7 @@ jobs:
 
           zip -r9 $ZIP_FILENAME ./* -x .git .gitignore out/ ./*.zip
 
+          mkdir -p ${WORKDIR}/out/
           mv -v $ZIP_FILENAME ${WORKDIR}/out/
 
           echo "操作成功完成！"
