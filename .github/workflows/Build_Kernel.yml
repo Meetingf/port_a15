@@ -328,22 +328,7 @@ jobs:
 
           zip -r9 $ZIP_FILENAME ./* -x .git .gitignore out/ ./*.zip
 
-          mv $ZIP_FILENAME ../
-
-          echo "Done. The flashable zip is: [./$ZIP_FILENAME]"
-
-          mkdir -p "${WORKDIR}/out" || {
-              echo "无法创建目录：${WORKDIR}/out" >&2
-              exit 1
-          }
-          if ! compgen -G ./Kernel_*.zip > /dev/null; then
-              echo "警告：未找到 Kernel_*.zip 文件，跳过移动操作" >&2
-              exit 0
-          fi
-          mv -v ./Kernel_*.zip "${WORKDIR}/out/" || {
-              echo "移动文件时出错" >&2
-              exit 1
-          }
+          mv -v $ZIP_FILENAME ${WORKDIR}/out/
 
           echo "操作成功完成！"
 
