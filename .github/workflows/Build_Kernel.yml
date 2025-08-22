@@ -141,7 +141,8 @@ jobs:
       - name: 📥 Cloning kernel source code (克隆内核源码)
         run: |
           echo "正在克隆内核源码..."
-          git clone https://github.com/liyafe1997/kernel_xiaomi_sm8250_mod.git --depth=1 $KERNEL_SOURCE
+          git clone https://github.com/liyafe1997/kernel_xiaomi_sm8250_mod.git --depth=10 $KERNEL_SOURCE
+          git checkout e5432343a28052ad0b5225454b1998be72f7e36b
           echo "✅ Kernel source code cloning complete (内核源码克隆完成)"
           if [ ${{ github.event.inputs.a16_bpf }} == 'true' ];then
               echo "正在合并a16bpf..."
@@ -375,8 +376,8 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: ${{ github.workspace }}/release/*.zip
-        name: Kernel_(${{ env.TARGET_DEVICES }})_${{ github.event.inputs.kernelsu_variant }}_${{ github.event.inputs.compiled_system }}_${{ env.RELEASE_DATE }}_${{ env.GIT_COMMIT_ID }}_${{ github.event.inputs.build_type }}
-        tag_name: Kernel_(${{ env.TARGET_DEVICES }})_${{ github.event.inputs.kernelsu_variant }}_${{ github.event.inputs.compiled_system }}_${{ env.RELEASE_DATE }}_${{ env.GIT_COMMIT_ID }}
+        name: Kernel_(${{ env.TARGET_DEVICES }})_${{ github.event.inputs.compiled_system }}_${{ env.RELEASE_DATE }}_${{ github.event.inputs.build_type }}
+        tag_name: Kernel_(${{ env.TARGET_DEVICES }})_${{ github.event.inputs.compiled_system }}_${{ env.RELEASE_DATE }}
         body: |
           ## 📱kernel build information | 内核构建信息
           
