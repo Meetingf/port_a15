@@ -142,6 +142,7 @@ jobs:
         run: |
           echo "正在克隆内核源码..."
           git clone https://github.com/liyafe1997/kernel_xiaomi_sm8250_mod.git --depth=10 $KERNEL_SOURCE
+          cd $KERNEL_SOURCE
           git checkout e5432343a28052ad0b5225454b1998be72f7e36b
           echo "✅ Kernel source code cloning complete (内核源码克隆完成)"
           if [ ${{ github.event.inputs.a16_bpf }} == 'true' ];then
@@ -168,8 +169,8 @@ jobs:
           else
               GIT_COMMIT_SHORT=$(git rev-parse --short=13 HEAD)
               echo "🔧 使用默认版本"
-              sed -i "s/-dirty/-${GIT_COMMIT_SHORT}-${DEVICE}/g" scripts/setlocalversion
-              sed -i "s/echo \"\$res\"/echo \"-perf-${GIT_COMMIT_SHORT}-${DEVICE}\"/g" "$KERNEL_SOURCE/scripts/setlocalversion"
+              sed -i "s/-dirty/-${GIT_COMMIT_SHORT}/g" scripts/setlocalversion
+              sed -i "s/echo \"\$res\"/echo \"-perf-${GIT_COMMIT_SHORT}\"/g" "$KERNEL_SOURCE/scripts/setlocalversion"
           fi
 
           FULL_VERSION="$VERSION"
